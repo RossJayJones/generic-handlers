@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using NServiceBus;
+using NServiceBus.Features;
 
 static class Program
 {
@@ -8,8 +9,11 @@ static class Program
     {
         Console.Title = "Samples.PubSub.Subscriber";
         var endpointConfiguration = new EndpointConfiguration("Samples.PubSub.Subscriber");
-        endpointConfiguration.UsePersistence<LearningPersistence>();
-        var transport = endpointConfiguration.UseTransport<LearningTransport>();
+        endpointConfiguration.UsePersistence<InMemoryPersistence>();
+        var transport = endpointConfiguration.UseTransport<MsmqTransport>();
+        endpointConfiguration.DisableFeature<TimeoutManager>();
+
+        transport.Routing().RegisterPublisher(typeof(IHaveData), "Samples.PubSub.Publisher");
 
         endpointConfiguration.SendFailedMessagesTo("error");
         endpointConfiguration.EnableInstallers();

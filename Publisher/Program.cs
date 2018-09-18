@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using NServiceBus;
+using NServiceBus.Features;
 using Shared.Core;
 
 static class Program
@@ -9,8 +10,9 @@ static class Program
     {
         Console.Title = "Samples.PubSub.Publisher";
         var endpointConfiguration = new EndpointConfiguration("Samples.PubSub.Publisher");
-        endpointConfiguration.UsePersistence<LearningPersistence>();
-        endpointConfiguration.UseTransport<LearningTransport>();
+        endpointConfiguration.UsePersistence<InMemoryPersistence>();
+        endpointConfiguration.UseTransport<MsmqTransport>();
+        endpointConfiguration.DisableFeature<TimeoutManager>();
 
         endpointConfiguration.SendFailedMessagesTo("error");
         endpointConfiguration.EnableInstallers();
@@ -30,22 +32,34 @@ static class Program
 
         #region PublishLoop
 
+        int count = 0;
         while (true)
         {
+            count++;
             var key = Console.ReadKey();
             Console.WriteLine();
 
             var orderReceivedId = Guid.NewGuid();
             if (key.Key == ConsoleKey.D1)
             {
-                var orderReceived = new OrderReceived<SomeData>
+                if (count % 2 == 0)
                 {
-                    OrderId = orderReceivedId,
-                    Data = new SomeData {  Id = "1"}
-                };
-                await endpointInstance.Publish(orderReceived)
-                    .ConfigureAwait(false);
-                Console.WriteLine($"Published OrderReceived Event with Id {orderReceivedId}.");
+                    await endpointInstance.Publish(new OrderReceived<SomeOtherData>
+                    {
+                        OrderId = orderReceivedId,
+                        Data = new SomeOtherData { Id = "10", Number = count }
+                    }).ConfigureAwait(false);
+                    Console.WriteLine($"Published OrderReceived with some other data Event with Id {orderReceivedId}.");
+                }
+                else
+                {
+                    await endpointInstance.Publish(new OrderReceived<SomeData>
+                    {
+                        OrderId = orderReceivedId,
+                        Data = new SomeData { Id = "1" }
+                    }).ConfigureAwait(false);
+                    Console.WriteLine($"Published OrderReceived Event with Id {orderReceivedId}.");
+                }
             }
             else
             {
